@@ -17,16 +17,10 @@
     changed_when: false
     when: ansible_distribution == "Ubuntu"
 
-- hosts: UbuntuServers
+- hosts: CentOSServers
   become: true
   vars:
     elasticsearch:
       http_port: 9200
   roles:
-    - UbuntuTasks
-
-- hosts: CentOSServers
-  become: true
-  roles:
     - CentOSTasks
-

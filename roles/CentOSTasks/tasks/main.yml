@@ -1,58 +1,50 @@
 ---
-- name: Install required packages
-  yum:
-    name:
-      - wget
-      - curl
-      - tar
-      - gpg
-    state: present
+    - name: Install Java (if not installed)
+      yum:
+        name: java-11-openjdk-devel
+        state: present
 
-- name: Create Prometheus directory
-  file:
-    path: /etc/prometheus
-    state: directory
-    mode: '0755'
+    - name: Install necessary packages
+      yum:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - curl
+        - gnupg2
+        - jq
 
-- name: Download Prometheus
-  get_url:
-    url: "https://github.com/prometheus/prometheus/releases/download/v2.54.1/prometheus-2.54.1.linux-amd64.tar.gz"
-    dest: /tmp/prometheus.tar.gz
+    - name: Import Elasticsearch GPG Key
+      command: >
+        rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
 
-- name: Extract Prometheus
-  unarchive:
-    src: /tmp/prometheus.tar.gz
-    dest: /usr/local/bin/
-    remote_src: yes
+    - name: Add Elasticsearch YUM Repository
+      copy:
+        dest: /etc/yum.repos.d/elasticsearch.repo
+        content: |
+          [elasticsearch-8.x]
+          name=Elasticsearch repository for 8.x packages
+          baseurl=https://artifacts.elastic.co/packages/8.x/yum
+          gpgcheck=1
+          gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+          enabled=1
+          autopurge=1
 
-- name: Move Prometheus binary to /usr/local/bin
-  command: mv /usr/local/bin/prometheus-2.54.1.linux-amd64/prometheus /usr/local/bin/prometheus
+    - name: Install Elasticsearch package
+      yum:
+        name: elasticsearch
+        state: present
 
-- name: Move Prometheus configuration file to /etc/prometheus
-  template:
-    src: prometheus.yml.j2
-    dest: /etc/prometheus/prometheus.yml
+    - name: Update Elasticsearch Configuration File
+      lineinfile:
+        path: /etc/elasticsearch/elasticsearch.yml
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: '^network\\.host:', line: 'network.host: {{ inventory_hostname }}' }
+        - { regexp: '^http\\.port:', line: 'http.port: {{ elasticsearch.http_port }}' }
 
-- name: Create Prometheus service file
-  copy:
-    content: |
-      [Unit]
-      Description=Prometheus
-      Wants=network-online.target
-      After=network-online.target
-
-      [Service]
-      User=root
-      ExecStart=/usr/local/bin/prometheus \
-        --config.file=/etc/prometheus/prometheus.yml \
-        --web.listen-address="0.0.0.0:9090"
-
-      [Install]
-      WantedBy=multi-user.target
-    dest: /etc/systemd/system/prometheus.service
-
-- name: Start and enable Prometheus
-  systemd:
-    name: prometheus
-    state: started
-    enabled: yes
+    - name: Enable and start Elasticsearch service
+      service:
+        name: elasticsearch
+        state: started
+        enabled: yes
