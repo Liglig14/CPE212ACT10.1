@@ -1,34 +1,25 @@
 ---
-    - name: Install prerequisites
-      apt:
-        name: "{{ item }}"
-        state: present
-      loop:
-        - apt-transport-https
-        - wget
-        - software-properties-common
+- name: Add Kibana APT Repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/elasticsearch-keyring.gpg] https://artifacts.elastic.co/packages/8.x/apt stable main"
+    state: present
+    filename: "artifacts_elastic_co_packages_8_x_apt.list"
 
-    - name: Add Elastic GPG key
-      apt_key:
-        url: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
-        state: present
+- name: Install kibana package
+  ansible.builtin.apt:
+    name: kibana
+    state: present
 
-    - name: Install Kibana
-      apt:
-        name: kibana
-        state: latest
+- name: Ensure the kibana configuration directory exists
+  ansible.builtin.file:
+    path: /etc/kibana
+    state: directory
+    owner: kibana
+    group: kibana
+    mode: '0755'
 
-    - name: Configure Kibana
-      lineinfile:
-        path: /etc/kibana/kibana.yml
-        regexp: '^{{ item.key }}:'
-        line: '{{ item.key }}: {{ item.value }}'
-      loop:
-        - { key: 'server.host', value: '0.0.0.0' }  # Allow external connections
-        - { key: 'elasticsearch.hosts', value: 'http://localhost:9200' }  # Adjust if necessary
-
-    - name: Enable and start Kibana service
-      systemd:
-        name: kibana
-        enabled: yes
-        state: started
+- name: Enable and start kibana service
+  ansible.builtin.service:
+    name: kibana
+    state: started
+    enabled: yes

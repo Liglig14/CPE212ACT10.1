@@ -19,16 +19,10 @@
 
 - hosts: UbuntuServers
   become: true
-  vars:
-   kibana:
-    port: 5601
-    host: "0.0.0.0"
-    elasticsearch_hosts:
-      - "http://localhost:9200"
   roles:
-    - UbuntuKibana
+    - UbuntuLogstash
 
 - hosts: CentOSServers
   become: true
   roles:
-    - CentOSKibana
+    - CentOSLogstash
